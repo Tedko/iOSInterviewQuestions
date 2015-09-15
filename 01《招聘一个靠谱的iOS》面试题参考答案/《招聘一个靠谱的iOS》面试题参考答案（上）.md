@@ -29,12 +29,12 @@
 
 	@interface CYLUser : NSObject<NSCopying>
 
-	@property (nonatomic, copy, readonly) NSString *name;
-	@property (nonatomic, assign, readonly) NSUInteger age;
-	@property (nonatomic, assign, readonly) CYLSex sex;
+	@property (nonatomic, readonly, copy) NSString *name;
+	@property (nonatomic, readonly, assign) NSUInteger age;
+	@property (nonatomic, readonly, assign) CYLSex sex;
 
-	- (instancetype)initWithName:(NSString *)name age:(int)age sex:(CYLSex)sex;
-	+ (instancetype)userWithName:(NSString *)name age:(int)age sex:(CYLSex)sex;
+	- (instancetype)initWithName:(NSString *)name age:(NSUInteger)age sex:(CYLSex)sex;
+	+ (instancetype)userWithName:(NSString *)name age:(NSUInteger)age sex:(CYLSex)sex;
 
 	@end
 
@@ -69,7 +69,14 @@
 
 
  5. 如果工程项目非常庞大，需要拆分成不同的模块，可以在类、typedef宏命名的时候使用前缀。
- 6. doLogIn方法不应写在该类中：虽然`LogIn`的命名不太清晰，但笔者猜测是login的意思，而登录操作属于业务逻辑，观察类名UserModel，以及属性的命名方式，应该使用的是MVC模式，并非MVVM，在MVC中业务逻辑不应当写在Model中。（如果是MVVM，抛开命名规范，UserModel这个类可能对应的是用户注册页面，如果有特殊的业务需求，比如：login对应的应当是注册并登录的一个Button，出现login方法也可能是合理的。）
+ 6. doLogIn方法不应写在该类中：虽然`LogIn`的命名不太清晰，但笔者猜测是login的意思，而登录操作属于业务逻辑，观察类名 UserModel ，以及属性的命名方式，该类应该是一个 Model 而不是一个“ MVVM 模式下的 ViewModel ”：
+
+
+ > 无论是MVC模式还是MVVM模式，业务逻辑都不应当写在Model里。
+
+
+ （如果抛开命名规范，假设该类真的是MVVM模式里的 ViewModel ，那么UserModel这个类可能对应的是用户注册页面，如果有特殊的业务需求，比如：login对应的应当是注册并登录的一个Button，出现login方法也可能是合理的。）
+
  7.  doLogIn方法命名不规范：添加了多余的动词前缀。
 请牢记：
 
@@ -103,7 +110,7 @@
     @implementation CYLUser
 
     - (instancetype)initWithName:(NSString *)name
-                             age:(int)age
+                             age:(NSUInteger)age
                              sex:(CYLSex)sex {
         if(self = [super init]) {
             _name = [name copy];
@@ -114,7 +121,7 @@
     }
 
     - (instancetype)initWithName:(NSString *)name
-                             age:(int)age {
+                             age:(NSUInteger)age {
         return [self initWithName:name age:age sex:nil];
     }
 
@@ -148,13 +155,13 @@
 
 	@interface CYLUser : NSObject<NSCopying>
 
-	@property (nonatomic, copy, readonly) NSString *name;
-	@property (nonatomic, assign, readonly) NSUInteger age;
-	@property (nonatomic, assign, readwrite) CYLSex sex;
+	@property (nonatomic, readonly, copy) NSString *name;
+	@property (nonatomic, readonly, assign) NSUInteger age;
+	@property (nonatomic, readwrite, assign) CYLSex sex;
 
-	- (instancetype)initWithName:(NSString *)name age:(int)age sex:(CYLSex)sex;
-	- (instancetype)initWithName:(NSString *)name age:(int)age;
-	+ (instancetype)userWithName:(NSString *)name age:(int)age sex:(CYLSex)sex;
+	- (instancetype)initWithName:(NSString *)name age:(NSUInteger)age sex:(CYLSex)sex;
+	- (instancetype)initWithName:(NSString *)name age:(NSUInteger)age;
+	+ (instancetype)userWithName:(NSString *)name age:(NSUInteger)age sex:(CYLSex)sex;
 
 	@end
 ```
@@ -167,13 +174,20 @@
  2. 如果基于第一种修改方法：既然该类中已经有一个“初始化方法” (initializer)，用于设置“姓名”(Name)、“年龄”(Age)和“性别”(Sex）的初始值:
 那么在设计对应@property时就应该尽量使用不可变的对象：其三个属性都应该设为“只读”。用初始化方法设置好属性值之后，就不能再改变了。在本例中，仍需声明属性的“内存管理语义”。于是可以把属性的定义改成这样
 
-        @property (nonatomic, copy, readonly) NSString *name;
-        @property (nonatomic, assign, readonly) NSUInter age;
-        @property (nonatomic, assign, readonly) CYLSex sex;
+        @property (nonatomic, readonly, copy) NSString *name;
+        @property (nonatomic, readonly, assign) NSUInter age;
+        @property (nonatomic, readonly, assign) CYLSex sex;
       由于是只读属性，所以编译器不会为其创建对应的“设置方法”，即便如此，我们还是要写上这些属性的语义，以此表明初始化方法在设置这些属性值时所用的方式。要是不写明语义的话，该类的调用者就不知道初始化方法里会拷贝这些属性，他们有可能会在调用初始化方法之前自行拷贝属性值。这种操作多余而且低效。
  2. `initUserModelWithUserName`如果改为`initWithName`会更加简洁，而且足够清晰。
  2. `UserModel`如果改为`User`会更加简洁，而且足够清晰。
  2. `UserSex`如果改为`Sex`会更加简洁，而且足够清晰。
+ 2. 第二个@property中assign和nonatomic调换位置。
+ 推荐按照下面的格式来定义属性
+
+ ```Objective-C
+@property (nonatomic, readwrite, copy) NSString *name;
+ ```
+ 属性的参数应该按照下面的顺序排列： 原子性，读写 和 内存管理。 这样做你的属性更容易修改正确，并且更好阅读。这在[《禅与Objective-C编程艺术 >》](https://github.com/oa414/objc-zen-book-cn#属性定义)里有介绍。而且习惯上修改某个属性的修饰符时，一般从属性名从右向左搜索需要修动的修饰符。最可能从最右边开始修改这些属性的修饰符，根据经验这些修饰符被修改的可能性从高到底应为：内存管理 > 读写权限 >原子操作。
 
 ####***硬伤部分***
 
@@ -191,7 +205,6 @@
  10. 
 	`-(id)initUserModelWithUserName: (NSString*)name withAge:(int)age;`方法中`(NSString*)name`,应为`(NSString *)name`，少了空格。 
  7.  doLogIn方法命名不清晰：笔者猜测是login的意思，应该是粗心手误造成的。
- 2. 第二个@property中assign和nonatomic调换位置。
 
 ###2. 什么情况使用 weak 关键字，相比 assign 有什么不同？
 什么情况使用 weak 关键字？
@@ -216,7 +229,7 @@ NSlnteger 等)的简单赋值操作。
  1. NSString、NSArray、NSDictionary 等等经常使用copy关键字，是因为他们有对应的可变类型：NSMutableString、NSMutableArray、NSMutableDictionary；
  2. block也经常使用copy关键字，具体原因见[官方文档：***Objects Use Properties to Keep Track of Blocks***](https://developer.apple.com/library/ios/documentation/Cocoa/Conceptual/ProgrammingWithObjectiveC/WorkingwithBlocks/WorkingwithBlocks.html#//apple_ref/doc/uid/TP40011210-CH8-SW12)：
 
- block使用copy是从MRC遗留下来的“传统”,在MRC中,方法内部的block是在栈区的,使用copy可以把它放到堆区.在ARC中写不写都行：对于block使用copy还是strong效果是一样的，但写上copy也无伤大雅，还能时刻提醒我们：编译器自动对block进行了copy操作。
+  block 使用 copy 是从 MRC 遗留下来的“传统”,在 MRC 中,方法内部的 block 是在栈区的,使用 copy 可以把它放到堆区.在ARC中写不写都行：对于 block 使用 copy 还是 strong 效果是一样的，但写上 copy 也无伤大雅，还能时刻提醒我们：编译器自动对 block 进行了 copy 操作。如果不写 copy ，该类的调用者有可能会忘记或者根本不知道“编译器会自动对 block 进行了 copy 操作”，他们有可能会在调用之前自行拷贝属性值。这种操作多余而低效。
 
  ![enter image description here](http://i.imgur.com/VlVKl8L.png)
 
@@ -234,6 +247,40 @@ copy此特质所表达的所属关系与strong类似。然而设置方法并不�
 两个问题：1、添加,删除,修改数组内的元素的时候,程序会因为找不到对应的方法而崩溃.因为copy就是复制一个不可变NSArray的对象；2、使用了atomic属性会严重影响性能 ； 
 
 第1条的相关原因在下文中有论述***《用@property声明的NSString（或NSArray，NSDictionary）经常使用copy关键字，为什么？如果改用strong关键字，可能造成什么问题？》*** 以及上文***《怎么用 copy 关键字？》***也有论述。
+
+比如下面的代码就会发生崩溃
+
+ 
+ 
+```Objective-C
+// .h文件
+// http://weibo.com/luohanchenyilong/
+// https://github.com/ChenYilong
+// 下面的代码就会发生崩溃
+
+@property (nonatomic, copy) NSMutableArray *mutableArray;
+```
+
+
+```Objective-C
+// .m文件
+// http://weibo.com/luohanchenyilong/
+// https://github.com/ChenYilong
+// 下面的代码就会发生崩溃
+
+NSMutableArray *array = [NSMutableArray arrayWithObjects:@1,@2,nil];
+self.mutableArray = array;
+[self.mutableArray removeObjectAtIndex:0];
+```
+
+接下来就会奔溃：
+
+ 
+```Objective-C
+ -[__NSArrayI removeObjectAtIndex:]: unrecognized selector sent to instance 0x7fcd1bc30460
+```
+
+
 
 第2条原因，如下：
 
@@ -281,12 +328,12 @@ atomic属性通常都不会有性能瓶颈。
 
 	@interface CYLUser : NSObject<NSCopying>
 
-	@property (nonatomic, copy, readonly) NSString *name;
-	@property (nonatomic, assign, readonly) NSUInteger age;
-	@property (nonatomic, assign, readonly) CYLSex sex;
+	@property (nonatomic, readonly, copy) NSString *name;
+	@property (nonatomic, readonly, assign) NSUInteger age;
+	@property (nonatomic, readonly, assign) CYLSex sex;
 
-	- (instancetype)initWithName:(NSString *)name age:(int)age sex:(CYLSex)sex;
-	+ (instancetype)userWithName:(NSString *)name age:(int)age sex:(CYLSex)sex;
+	- (instancetype)initWithName:(NSString *)name age:(NSUInteger)age sex:(CYLSex)sex;
+	+ (instancetype)userWithName:(NSString *)name age:(NSUInteger)age sex:(CYLSex)sex;
 
 	@end
 
@@ -295,7 +342,7 @@ atomic属性通常都不会有性能瓶颈。
  
 ```Objective-C
 - (id)copyWithZone:(NSZone *)zone {
-	CYLUser *copy = [[[self copy] allocWithZone:zone] 
+	CYLUser *copy = [[[self class] allocWithZone:zone] 
 		             initWithName:_name
  							      age:_age
 						          sex:_sex];
@@ -316,12 +363,12 @@ atomic属性通常都不会有性能瓶颈。
 
 	@interface CYLUser : NSObject<NSCopying>
 
-	@property (nonatomic, copy, readonly) NSString *name;
-	@property (nonatomic, assign, readonly) NSUInteger age;
-	@property (nonatomic, assign, readonly) CYLSex sex;
+	@property (nonatomic, readonly, copy) NSString *name;
+	@property (nonatomic, readonly, assign) NSUInteger age;
+	@property (nonatomic, readonly, assign) CYLSex sex;
 
-	- (instancetype)initWithName:(NSString *)name age:(int)age sex:(CYLSex)sex;
-	+ (instancetype)userWithName:(NSString *)name age:(int)age sex:(CYLSex)sex;
+	- (instancetype)initWithName:(NSString *)name age:(NSUInteger)age sex:(CYLSex)sex;
+	+ (instancetype)userWithName:(NSString *)name age:(NSUInteger)age sex:(CYLSex)sex;
 	- (void)addFriend:(CYLUser *)user;
 	- (void)removeFriend:(CYLUser *)user;
 
@@ -344,7 +391,7 @@ atomic属性通常都不会有性能瓶颈。
 	}
 
 	- (instancetype)initWithName:(NSString *)name 
-								 age:(int)age 
+								 age:(NSUInteger)age 
 								 sex:(CYLSex)sex {
 	     if(self = [super init]) {
 	     	_name = [name copy];
@@ -364,7 +411,7 @@ atomic属性通常都不会有性能瓶颈。
 	}
 
 	- (id)copyWithZone:(NSZone *)zone {
-		CYLUser *copy = [[[self copy] allocWithZone:zone] 
+		CYLUser *copy = [[[self class] allocWithZone:zone] 
 			             initWithName:_name
 	 							      age:_age
 							          sex:_sex];
@@ -373,7 +420,7 @@ atomic属性通常都不会有性能瓶颈。
 	}
 
 	- (id)deepCopy {
-		CYLUser *copy = [[[self copy] allocWithZone:zone] 
+		CYLUser *copy = [[[self class] allocWithZone:zone] 
 			             initWithName:_name
 	 							      age:_age
 							          sex:_sex];
@@ -390,11 +437,11 @@ atomic属性通常都不会有性能瓶颈。
 
 【注：深浅拷贝的概念，在下文中有介绍，详见下文的：***用@property声明的NSString（或NSArray，NSDictionary）经常使用copy关键字，为什么？如果改用strong关键字，可能造成什么问题？***】
 
-在例子中，存放朋友对象的set是用“copyWithZooe:”方法来拷贝的，这种浅拷贝方式不会逐个复制set中的元素。若需要深拷贝的话，则可像下面这样，编写一个专供深拷贝所用的方法:
+在例子中，存放朋友对象的set是用“copyWithZone:”方法来拷贝的，这种浅拷贝方式不会逐个复制set中的元素。若需要深拷贝的话，则可像下面这样，编写一个专供深拷贝所用的方法:
 	
 
 	- (id)deepCopy {
-		CYLUser *copy = [[[self copy] allocWithZone:zone] 
+		CYLUser *copy = [[[self class] allocWithZone:zone] 
 			             initWithName:_name
 	 							      age:_age
 							          sex:_sex];
@@ -408,17 +455,95 @@ atomic属性通常都不会有性能瓶颈。
 
 如果抛开本例来回答的话，如下：
 
+
+ 
+```Objective-C
+- (void)setName:(NSString *)name {
+    //[_name release];
+    _name = [name copy];
+}
+```
+
+不过也有争议，有人说“苹果如果像下面这样干，是不是效率会高一些？”
+
 	- (void)setName:(NSString *)name {
+		if (_name != name) {
+		//[_name release];//MRC
 		_name = [name copy];
+	    }
 	}
 
 
-如果单单就上文的代码而言，我们不需要也不能重写name的 setter ：由于是name是只读属性，所以编译器不会为其创建对应的“设置方法”，用初始化方法设置好属性值之后，就不能再改变了。（ 在本例中，之所以还要声明属性的“内存管理语义”--copy，是因为：如果不写copy，该类的调用者就不知道初始化方法里会拷贝这些属性，他们有可能会在调用初始化方法之前自行拷贝属性值。这种操作多余而低效。）。
+这样真得高效吗？不见得！这种写法“看上去很美、很合理”，但在实际开发中，它更像下图里的做法：
+
+![enter image description here](http://i.imgur.com/UwV9oSn.jpeg)
+
+克强总理这样评价你的代码风格：
+
+![enter image description here](http://i.imgur.com/N77Lkic.png)
+
+我和总理的意见基本一致：
+
+
+> 老百姓 copy 一下，咋就这么难？
+
+
+
+
+你可能会说：
+
+ 
+之所以在这里做`if判断` 这个操作：是因为一个 if 可能避免一个耗时的copy，还是很划算的。
+(在刚刚讲的：《如何让自己的类用 copy 修饰符？》里的那种复杂的copy，我们可以称之为 “耗时的copy”，但是对 NSString 的 copy 还称不上。)
+
+
+但是你有没有考虑过代价：
+
+
+> 你每次调用`setX:`都会做 if 判断，这会让`setX:`变慢，如果你在`setX:`写了一串复杂的 `if+elseif+elseif+...` 判断，将会更慢。
+
+
+
+
+
+要回答“哪个效率会高一些？”这个问题，不能脱离实际开发，就算 copy 操作十分耗时，if 判断也不见得一定会更快，除非你把一个“ @property他当前的值 ”赋给了他自己，代码看起来就像：
+
+```Objective-C
+[a setX:x1];
+[a setX:x1];    //你确定你要这么干？与其在setter中判断，为什么不把代码写好？
+```
+
+或者
+
+
+```Objective-C
+[a setX:[a x]];   //队友咆哮道：你在干嘛？！！
+```
+
+> 不要在setter里进行像`if(_obj != newObj)`这样的判断。（该观点参考链接：[ ***How To Write Cocoa Object Setters： Principle 3: Only Optimize After You Measure*** ](http://vgable.com/blog/tag/autorelease/)
+）
+
+
+什么情况会在 copy setter 里做 if 判断？
+例如，车速可能就有最高速的限制，车速也不可能出现负值，如果车子的最高速为300，则 setter 的方法就要改写成这样：
+
+ 
+```Objective-C
+-(void)setSpeed:(int)_speed{
+    if(_speed < 0) speed = 0;
+    if(_speed > 300) speed = 300;
+    _speed = speed;
+}
+```
+
+
+
+回到这个题目，如果单单就上文的代码而言，我们不需要也不能重写name的 setter ：由于是name是只读属性，所以编译器不会为其创建对应的“设置方法”，用初始化方法设置好属性值之后，就不能再改变了。（ 在本例中，之所以还要声明属性的“内存管理语义”--copy，是因为：如果不写copy，该类的调用者就不知道初始化方法里会拷贝这些属性，他们有可能会在调用初始化方法之前自行拷贝属性值。这种操作多余而低效。）。
 
 那如何确保name被copy？在初始化方法(initializer)中做：
 	
 	- (instancetype)initWithName:(NSString *)name 
-								 age:(int)age 
+								 age:(NSUInteger)age 
 								 sex:(CYLSex)sex {
 	     if(self = [super init]) {
 	     	_name = [name copy];
@@ -484,7 +609,7 @@ atomic属性通常都不会有性能瓶颈。
 
 	@implementation Person 
 	@synthesize firstName = _myFirstName; 
-	@synthesize lastName = myLastName; 
+	@synthesize lastName = _myLastName; 
 	@end 
 
 我为了搞清属性是怎么实现的,曾经反编译过相关的代码,他大致生成了五个东西
@@ -517,6 +642,7 @@ atomic属性通常都不会有性能瓶颈。
 
 > runtime 对注册的类， 会进行布局，对于 weak 对象会放入一个 hash 表中。 用 weak 指向的对象内存地址作为 key，当此对象的引用计数为0的时候会 dealloc，假如 weak 指向的对象内存地址是a，那么就会以a为键， 在这个 weak 表中搜索，找到所有以a为键的 weak 对象，从而设置为 nil。
 
+（注：在下文的《使用runtime Associate方法关联的对象，需要在主对象dealloc的时候释放么？》里给出的“对象的内存销毁时间表”也提到`__weak`引用的解除时间。）
 
 我们可以设计一个函数（伪代码）来表示上述机制：
 
@@ -746,7 +872,7 @@ objc_setAssociatedObject(objectToBeDeallocted,
 
     在默认情况下，由编译器合成的方法会通过锁定机制确保其原子性(atomicity)。如果属性具备nonatomic特质，则不使用同步锁。请注意，尽管没有名为“atomic”的特质(如果某属性不具备nonatomic特质，那它就是“原子的” ( atomic) )，但是仍然可以在属性特质中写明这一点，编译器不会报错。若是自己定义存取方法，那么就应该遵从与属性特质相符的原子性。
 
- 2. 读/写权限---`readwrite(读写)`、`readooly (只读)`
+ 2. 读/写权限---`readwrite(读写)`、`readonly (只读)`
  3. 内存管理语义---`assign`、`strong`、 `weak`、`unsafe_unretained`、`copy`
  4. 方法名---`getter=<name>` 、`setter=<name>`
    
@@ -760,7 +886,7 @@ objc_setAssociatedObject(objectToBeDeallocted,
 不需要。
 
 
-> 在ARC环境无论是强指针还是弱指针都无需在deallco设置为nil，ARC会自动帮我们处理
+> 在ARC环境无论是强指针还是弱指针都无需在 dealloc 设置为 nil ， ARC 会自动帮我们处理
 
 即便是编译器不帮我们做这些，weak也不需要在dealloc中置nil：
 
@@ -815,7 +941,13 @@ objc_setAssociatedObject(objectToBeDeallocted,
 copy此特质所表达的所属关系与strong类似。然而设置方法并不保留新值，而是将其“拷贝” (copy)。
 当属性类型为NSString时，经常用此特质来保护其封装性，因为传递给设置方法的新值有可能指向一个NSMutableString类的实例。这个类是NSString的子类，表示一种可修改其值的字符串，此时若是不拷贝字符串，那么设置完属性之后，字符串的值就可能会在对象不知情的情况下遭人更改。所以，这时就要拷贝一份“不可变” (immutable)的字符串，确保对象中的字符串值不会无意间变动。只要实现属性所用的对象是“可变的” (mutable)，就应该在设置新属性值时拷贝一份。
 
-为了理解这种做法，首先要知道，对非集合类对象的copy操作：
+为了理解这种做法，首先要知道，两种情况：
+
+
+ 1. 对非集合类对象的copy与mutableCopy操作；
+ 2. 对集合类对象的copy与mutableCopy操作。
+
+####1. 对非集合类对象的copy操作：
 
 在非集合类对象中：对immutable对象进行copy操作，是指针复制，mutableCopy操作时内容复制；对mutable对象进行copy和mutableCopy都是内容复制。用代码简单表示如下：
 
@@ -838,8 +970,32 @@ stringCopy的值也不会因此改变，但是如果不使用copy，stringCopy�
 
 > 用@property声明 NSString、NSArray、NSDictionary 经常使用copy关键字，是因为他们有对应的可变类型：NSMutableString、NSMutableArray、NSMutableDictionary，他们之间可能进行赋值操作，为确保对象中的字符串值不会无意间变动，应该在设置新属性值时拷贝一份。
 
-参考链接：[iOS 集合的深复制与浅复制](https://www.zybuluo.com/MicroCai/note/50592)
+####2、集合类对象的copy与mutableCopy
 
+集合类对象是指NSArray、NSDictionary、NSSet ... 之类的对象。下面先看集合类immutable对象使用copy和mutableCopy的一个例子：
+
+	NSArray *array = @[@[@"a", @"b"], @[@"c", @"d"];
+	NSArray *copyArray = [array copy];
+	NSMutableArray *mCopyArray = [array mutableCopy];
+
+查看内容，可以看到copyArray和array的地址是一样的，而mCopyArray和array的地址是不同的。说明copy操作进行了指针拷贝，mutableCopy进行了内容拷贝。但需要强调的是：此处的内容拷贝，仅仅是拷贝array这个对象，array集合内部的元素仍然是指针拷贝。这和上面的非集合immutable对象的拷贝还是挺相似的，那么mutable对象的拷贝会不会类似呢？我们继续往下，看mutable对象拷贝的例子：
+
+	NSMutableArray *array = [NSMutableArray arrayWithObjects:[NSMutableString stringWithString:@"a"],@"b",@"c",nil];
+	NSArray *copyArray = [array copy];
+	NSMutableArray *mCopyArray = [array mutableCopy];
+
+查看内存，如我们所料，copyArray、mCopyArray和array的内存地址都不一样，说明copyArray、mCopyArray都对array进行了内容拷贝。同样，我们可以得出结论：
+
+在集合类对象中，对immutable对象进行copy，是指针复制，mutableCopy是内容复制；对mutable对象进行copy和mutableCopy都是内容复制。但是：集合对象的内容复制仅限于对象本身，对象元素仍然是指针复制。用代码简单表示如下：
+
+	[immutableObject copy] // 浅复制
+	[immutableObject mutableCopy] //单层深复制
+	[mutableObject copy] //单层深复制
+	[mutableObject mutableCopy] //单层深复制
+
+这个代码结论和非集合类的非常相似。
+
+参考链接：[iOS 集合的深复制与浅复制](https://www.zybuluo.com/MicroCai/note/50592)
 
 ###14. @synthesize合成实例变量的规则是什么？假如property名为foo，存在一个名为`_foo`的实例变量，那么还会自动合成新变量么？
 在回答之前先说明下一个概念：
@@ -928,7 +1084,7 @@ stringCopy的值也不会因此改变，但是如果不使用copy，stringCopy�
 
 
 
-上述语法会将生成的实例变量命名为`_myFirstName`与`_myLastName`，而不再使用默认的名字。一般情况下无须修改默认的实例变量名，但是如果你不喜欢以下划线来命名实例变量，那么可以用这个办法将其改为自己想要的名字。笔者还是推荐使用默认的命名案，因为如果所有人都坚持这套方案，那么写出来的代码大家都能看得懂。
+上述语法会将生成的实例变量命名为`_myFirstName`与`_myLastName`，而不再使用默认的名字。一般情况下无须修改默认的实例变量名，但是如果你不喜欢以下划线来命名实例变量，那么可以用这个办法将其改为自己想要的名字。笔者还是推荐使用默认的命名方案，因为如果所有人都坚持这套方案，那么写出来的代码大家都能看得懂。
 
 
 
@@ -1032,26 +1188,59 @@ objc在向一个对象发送消息时，runtime库会根据对象的isa指针找
 那么，回到本题，如果向一个nil对象发送消息，首先在寻找对象的isa指针时就是0地址返回了，所以不会出现任何错误。
 
 
-###17. objc中向一个对象发送消息[obj foo]和objc_msgSend()函数之间有什么关系？
-具体原因同上题：该方法编译之后就是`objc_msgSend()`函数调用.如果我没有记错的大概是这样的：
+###17. objc中向一个对象发送消息[obj foo]和`objc_msgSend()`函数之间有什么关系？
+具体原因同上题：该方法编译之后就是`objc_msgSend()`函数调用.
+
+我们用 clang 分析下，clang 提供一个命令，可以将Objective-C的源码改写成C++语言，借此可以研究下[obj foo]和`objc_msgSend()`函数之间有什么关系。
+
+以下面的代码为例，由于 clang 后的代码达到了10万多行，为了便于区分，添加了一个叫 iOSinit 方法，
+
+```Objective-C
+//
+//  main.m
+//  http://weibo.com/luohanchenyilong/
+//  https://github.com/ChenYilong
+//  Copyright (c) 2015年 微博@iOS程序犭袁. All rights reserved.
+//
+
+
+#import "CYLTest.h"
+
+int main(int argc, char * argv[]) {
+    @autoreleasepool {
+        CYLTest *test = [[CYLTest alloc] init];
+        [test performSelector:(@selector(iOSinit))];
+        return 0;
+    }
+}
+```
+
+在终端中输入
+
+```Objective-C
+clang -rewrite-objc main.m
+```
+就可以生成一个`main.cpp`的文件，在最低端（10万4千行左右）
+
+![enter image description here](http://i.imgur.com/eAH5YWn.png)
+
+我们可以看到大概是这样的：
 
  
 ```Objective-C
 ((void ()(id, SEL))(void )objc_msgSend)((id)obj, sel_registerName("foo"));
 ```
+
 也就是说：
 
 >  [obj foo];在objc动态编译时，会被转意为：`objc_msgSend(obj, @selector(foo));`。
-
-
-
 
 ###18. 什么时候会报unrecognized selector的异常？
 
 简单来说：
 
 
-> 当使用某对象上的某个方法,而该对象上没有实现这个方法的时候，
+> 当调用该对象上某个方法,而该对象上没有实现这个方法的时候，
 可以通过“消息转发”进行解决。
 
 
@@ -1067,7 +1256,7 @@ objc在向一个对象发送消息时，runtime库会根据对象的isa指针找
 
  1. Method resolution
 
- objc运行时会调用`+resolveInstanceMethod:`或者 `+resolveClassMethod:`，让你有机会提供一个函数实现。如果你添加了函数并返回 YES，那运行时系统就会重新启动一次消息发送的过程，如果 resolve 方法返回 NO ，运行时就会移到下一步，消息转发（Message Forwarding）。
+ objc运行时会调用`+resolveInstanceMethod:`或者 `+resolveClassMethod:`，让你有机会提供一个函数实现。如果你添加了函数，那运行时系统就会重新启动一次消息发送的过程，否则 ，运行时就会移到下一步，消息转发（Message Forwarding）。
 
  2. Fast forwarding
 
@@ -1078,6 +1267,7 @@ objc在向一个对象发送消息时，runtime库会根据对象的isa指针找
 
  这一步是Runtime最后一次给你挽救的机会。首先它会发送`-methodSignatureForSelector:`消息获得函数的参数和返回值类型。如果`-methodSignatureForSelector:`返回nil，Runtime则会发出`-doesNotRecognizeSelector:`消息，程序这时也就挂掉了。如果返回了一个函数签名，Runtime就会创建一个NSInvocation对象并发送`-forwardInvocation:`消息给目标对象。
 
+为了能更清晰地理解这些方法的作用，git仓库里也给出了一个Demo，名称叫“ `_objc_msgForward_demo` ”,可运行起来看看。
 
 ###19. 一个objc对象如何进行内存布局？（考虑有父类的情况）
 
@@ -1091,7 +1281,21 @@ objc在向一个对象发送消息时，runtime库会根据对象的isa指针找
 
  它内部也有一个isa指针指向元对象(meta class),元对象内部存放的是类方法列表,类对象内部还有一个superclass的指针,指向他的父类对象。
 
+每个 Objective-C 对象都有相同的结构，如下图所示：
+
  ![enter image description here](http://i.imgur.com/7mJlUj1.png)
+
+翻译过来就是
+
+|  Objective-C 对象的结构图 | 
+ ------------- |
+ ISA指针 |
+ 根类的实例变量 |
+ 倒数第二层父类的实例变量 |
+ ... |
+ 父类的实例变量 |
+ 类的实例变量 | 
+
 
  - 根对象就是NSobject，它的superclass指针指向nil
 
@@ -1187,8 +1391,84 @@ objc Runtime开源代码对- (Class)class方法的实现:
 
 ###23. 使用runtime Associate方法关联的对象，需要在主对象dealloc的时候释放么？
 
- - 在ARC下不需要
- - 在MRC中,对于使用retain或copy策略的需要
+ - 在ARC下不需要。
+ - <p><del> 在MRC中,对于使用retain或copy策略的需要 。</del></p>在MRC下也不需要
+
+> 无论在MRC下还是ARC下均不需要。
+
+
+[ ***2011年版本的Apple API 官方文档 - Associative References***  ](https://web.archive.org/web/20120818164935/http://developer.apple.com/library/ios/#/web/20120820002100/http://developer.apple.com/library/ios/documentation/cocoa/conceptual/objectivec/Chapters/ocAssociativeReferences.html) 一节中有一个MRC环境下的例子：
+
+
+ 
+```Objective-C
+// 在MRC下，使用runtime Associate方法关联的对象，不需要在主对象dealloc的时候释放
+// http://weibo.com/luohanchenyilong/ (微博@iOS程序犭袁)
+// https://github.com/ChenYilong
+// 摘自2011年版本的Apple API 官方文档 - Associative References 
+
+static char overviewKey;
+ 
+NSArray *array =
+    [[NSArray alloc] initWithObjects:@"One", @"Two", @"Three", nil];
+// For the purposes of illustration, use initWithFormat: to ensure
+// the string can be deallocated
+NSString *overview =
+    [[NSString alloc] initWithFormat:@"%@", @"First three numbers"];
+ 
+objc_setAssociatedObject (
+    array,
+    &overviewKey,
+    overview,
+    OBJC_ASSOCIATION_RETAIN
+);
+ 
+[overview release];
+// (1) overview valid
+[array release];
+// (2) overview invalid
+```
+文档指出 
+
+> At point 1, the string `overview` is still valid because the `OBJC_ASSOCIATION_RETAIN` policy specifies that the array retains the associated object. When the array is deallocated, however (at point 2), `overview` is released and so in this case also deallocated.
+
+我们可以看到，在`[array release];`之后，overview就会被release释放掉了。
+
+既然会被销毁，那么具体在什么时间点？
+
+
+> 根据[ ***WWDC 2011, Session 322 (第36分22秒)*** ](https://developer.apple.com/videos/wwdc/2011/#322-video)中发布的内存销毁时间表，被关联的对象在生命周期内要比对象本身释放的晚很多。它们会在被 NSObject -dealloc 调用的 object_dispose() 方法中释放。
+
+对象的内存销毁时间表，分四个步骤：
+
+	// 对象的内存销毁时间表
+	// http://weibo.com/luohanchenyilong/ (微博@iOS程序犭袁)
+	// https://github.com/ChenYilong
+    // 根据 WWDC 2011, Session 322 (36分22秒)中发布的内存销毁时间表 
+
+     1. 调用 -release ：引用计数变为零
+         * 对象正在被销毁，生命周期即将结束.
+         * 不能再有新的 __weak 弱引用， 否则将指向 nil.
+         * 调用 [self dealloc] 
+     2. 父类 调用 -dealloc
+         * 继承关系中最底层的父类 在调用 -dealloc
+         * 如果是 MRC 代码 则会手动释放实例变量们（iVars）
+         * 继承关系中每一层的父类 都在调用 -dealloc
+     3. NSObject 调 -dealloc
+         * 只做一件事：调用 Objective-C runtime 中的 object_dispose() 方法
+     4. 调用 object_dispose()
+         * 为 C++ 的实例变量们（iVars）调用 destructors 
+         * 为 ARC 状态下的 实例变量们（iVars） 调用 -release 
+         * 解除所有使用 runtime Associate方法关联的对象
+         * 解除所有 __weak 引用
+         * 调用 free()
+
+
+对象的内存销毁时间表：[参考链接](http://stackoverflow.com/a/10843510/3395008)。
+
+
+
+
 
 ###24. objc中的类方法和实例方法有什么本质区别和联系？
 
